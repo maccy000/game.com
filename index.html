@@ -7,7 +7,7 @@
 <style>
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: sans-serif;
   background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
   color: white;
   text-align: center;
@@ -20,69 +20,63 @@ body {
   right: 20px;
   background: rgba(255,255,255,0.1);
   padding: 15px;
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  text-align: right;
-  font-size: 14px;
+  border-radius: 10px;
 }
 
-/* メイン */
+/* コンテナ */
 .container {
-  margin-top: 120px;
-}
-
-h1 {
-  font-size: 40px;
-}
-
-.box-area {
-  display: flex;
-  justify-content: center;
-  gap: 50px;
-  margin-top: 40px;
+  margin-top: 100px;
 }
 
 /* 箱 */
+.box-area {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 30px;
+}
+
 .box {
   width: 120px;
   height: 120px;
-  background: linear-gradient(145deg, #444, #222);
-  border-radius: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #333;
+  border-radius: 12px;
   font-size: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   cursor: pointer;
-  transition: 0.3s;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  transition: 0.2s;
 }
 
 .box:hover {
   transform: scale(1.1);
 }
 
-/* 結果表示 */
-.result {
-  margin-top: 30px;
-  font-size: 22px;
+.success { background: gold; }
+.fail { background: crimson; }
+
+/* ランキング */
+#ranking {
+  margin-top: 40px;
 }
 
-.prob {
-  margin-top: 10px;
-  color: #aee7ff;
+input {
+  padding: 8px;
+  border-radius: 5px;
+  border: none;
 }
 
-/* エフェクト */
-.success {
-  background: linear-gradient(145deg, gold, orange);
-}
-
-.fail {
-  background: linear-gradient(145deg, #ff4e50, #8b0000);
+button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  margin-left: 5px;
+  cursor: pointer;
 }
 </style>
-
 </head>
+
 <body>
 
 <div id="highScoreBox">
@@ -92,32 +86,37 @@ h1 {
 
 <div class="container">
   <h1>2分の1チャレンジ</h1>
-  <p>どちらかにお金が入っている…！</p>
 
   <div class="box-area">
     <div class="box" onclick="chooseBox(0)">?</div>
     <div class="box" onclick="chooseBox(1)">?</div>
   </div>
 
-  <div class="result" id="result">成功回数: 0</div>
-  <div class="prob" id="probability">確率: 100%</div>
+  <div id="result">成功回数: 0</div>
+  <div id="probability">確率: 100%</div>
+
+  <div id="nameInput" style="display:none; margin-top:20px;">
+    名前: <input type="text" id="playerName">
+    <button onclick="saveScore()">登録</button>
+  </div>
+
+  <div id="ranking">
+    <h2>ランキング</h2>
+    <ol id="rankingList"></ol>
+  </div>
 </div>
 
 <script>
 let successCount = 0;
 let gameOver = false;
 
-// ハイスコア読み込み
+// 初期ロード
 window.onload = function() {
-  let s = localStorage.getItem("highScore");
-  let t = localStorage.getItem("highScoreTime");
-
-  if (s) {
-    document.getElementById("highScore").textContent = s;
-    document.getElementById("updateTime").textContent = t;
-  }
+  loadHighScore();
+  loadRanking();
 };
 
+// 箱選択
 function chooseBox(choice) {
   if (gameOver) {
     resetGame();
@@ -127,70 +126,105 @@ function chooseBox(choice) {
   let correct = Math.random() < 0.5 ? 0 : 1;
   let boxes = document.querySelectorAll(".box");
 
-  // 全リセット
   boxes.forEach(b => {
     b.classList.remove("success", "fail");
     b.textContent = "?";
   });
 
   if (choice === correct) {
-    // 成功
     successCount++;
     boxes[choice].classList.add("success");
     boxes[choice].textContent = "💰";
   } else {
-    // 失敗
     gameOver = true;
     boxes[choice].classList.add("fail");
     boxes[choice].textContent = "❌";
     boxes[correct].classList.add("success");
     boxes[correct].textContent = "💰";
-    checkHighScore();
+
+    document.getElementById("nameInput").style.display = "block";
+
+    updateHighScore();
   }
 
   updateDisplay();
 }
 
+// 表示更新
 function updateDisplay() {
   document.getElementById("result").textContent =
     "成功回数: " + successCount;
 
-  let probability = Math.pow(0.5, successCount);
-  let percent = (probability * 100).toFixed(8);
-
+  let p = Math.pow(0.5, successCount) * 100;
   document.getElementById("probability").textContent =
-    "ここまで成功する確率: " + percent + "%";
-
-  if (gameOver) {
-    document.getElementById("result").textContent += "（ゲームオーバー：クリックでリスタート）";
-  }
+    "確率: " + p.toFixed(8) + "%";
 }
 
 // リセット
 function resetGame() {
   successCount = 0;
   gameOver = false;
+  document.getElementById("nameInput").style.display = "none";
+
   document.querySelectorAll(".box").forEach(b => {
     b.classList.remove("success", "fail");
     b.textContent = "?";
   });
+
   updateDisplay();
 }
 
 // ハイスコア
-function checkHighScore() {
-  let high = localStorage.getItem("highScore") || 0;
-
-  if (successCount > high) {
-    let now = new Date();
-    let t = now.toLocaleString();
-
-    localStorage.setItem("highScore", successCount);
-    localStorage.setItem("highScoreTime", t);
-
-    document.getElementById("highScore").textContent = successCount;
+function loadHighScore() {
+  let s = localStorage.getItem("highScore");
+  let t = localStorage.getItem("highScoreTime");
+  if (s) {
+    document.getElementById("highScore").textContent = s;
     document.getElementById("updateTime").textContent = t;
   }
+}
+
+function updateHighScore() {
+  let high = localStorage.getItem("highScore") || 0;
+  if (successCount > high) {
+    let now = new Date().toLocaleString();
+    localStorage.setItem("highScore", successCount);
+    localStorage.setItem("highScoreTime", now);
+    loadHighScore();
+  }
+}
+
+// ランキング保存
+function saveScore() {
+  let name = document.getElementById("playerName").value || "名無し";
+
+  let ranking = JSON.parse(localStorage.getItem("ranking") || "[]");
+
+  ranking.push({ name: name, score: successCount });
+
+  // スコア順
+  ranking.sort((a,b) => b.score - a.score);
+
+  // 上位10件だけ
+  ranking = ranking.slice(0, 10);
+
+  localStorage.setItem("ranking", JSON.stringify(ranking));
+
+  loadRanking();
+  resetGame();
+}
+
+// ランキング表示
+function loadRanking() {
+  let ranking = JSON.parse(localStorage.getItem("ranking") || "[]");
+  let list = document.getElementById("rankingList");
+  list.innerHTML = "";
+
+  ranking.forEach(r => {
+    let li = document.createElement("li");
+    li.textContent = r.name + " : " + r.score;
+    list.appendChild(li);
+  });
 }
 </script>
 
