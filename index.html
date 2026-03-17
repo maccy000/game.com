@@ -1,112 +1,171 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>2分の1チャレンジ</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #f0f4f8;
-      padding: 50px;
-    }
+<meta charset="UTF-8">
+<title>2分の1チャレンジ</title>
 
-    h1 {
-      color: #333;
-    }
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  color: white;
+  text-align: center;
+}
 
-    .card {
-      background: white;
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      display: inline-block;
-    }
+/* 右上ハイスコア */
+#highScoreBox {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255,255,255,0.1);
+  padding: 15px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  text-align: right;
+  font-size: 14px;
+}
 
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
-      margin-top: 20px;
-    }
+.container {
+  margin-top: 120px;
+}
 
-    button:hover {
-      background: #45a049;
-    }
+h1 {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
 
-    .result {
-      margin-top: 20px;
-      font-size: 18px;
-    }
+.card {
+  background: rgba(255,255,255,0.1);
+  padding: 40px;
+  border-radius: 20px;
+  display: inline-block;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
 
-    .prob {
-      margin-top: 10px;
-      font-weight: bold;
-      color: #0077cc;
-    }
-  </style>
+button {
+  margin-top: 20px;
+  padding: 15px 30px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+  background: #00c6ff;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  transform: scale(1.05);
+}
+
+.result {
+  margin-top: 20px;
+  font-size: 22px;
+}
+
+.prob {
+  margin-top: 10px;
+  font-size: 18px;
+  color: #aee7ff;
+}
+</style>
+
 </head>
 <body>
 
-  <h1>2分の1チャレンジゲーム</h1>
+<div id="highScoreBox">
+  <div>🏆 ハイスコア: <span id="highScore">0</span></div>
+  <div>更新: <span id="updateTime">なし</span></div>
+</div>
+
+<div class="container">
+  <h1>2分の1チャレンジ</h1>
 
   <div class="card">
-    <p>ボタンを押すたびに「1/2」を引けるか挑戦！</p>
-    <p>外れたらゲームオーバー！</p>
+    <p>成功し続けろ。</p>
 
-    <button onclick="playGame()">挑戦する</button>
+    <button id="btn" onclick="playGame()">挑戦する</button>
 
     <div class="result" id="result">成功回数: 0</div>
     <div class="prob" id="probability">確率: 100%</div>
   </div>
+</div>
 
-  <script>
-    let successCount = 0;
-    let gameOver = false;
+<script>
+let successCount = 0;
+let gameOver = false;
 
-    function playGame() {
-      if (gameOver) {
-        // リセット
-        successCount = 0;
-        gameOver = false;
-        document.getElementById("result").textContent = "成功回数: 0";
-        document.getElementById("probability").textContent = "確率: 100%";
-        return;
-      }
+// ロード時にハイスコア読み込み
+window.onload = function() {
+  let savedScore = localStorage.getItem("highScore");
+  let savedTime = localStorage.getItem("highScoreTime");
 
-      // 0か1（50%）
-      let random = Math.random();
+  if (savedScore) {
+    document.getElementById("highScore").textContent = savedScore;
+    document.getElementById("updateTime").textContent = savedTime;
+  }
+};
 
-      if (random < 0.5) {
-        // 成功
-        successCount++;
-        updateDisplay();
-      } else {
-        // 失敗
-        gameOver = true;
-        updateDisplay(true);
-      }
-    }
+function playGame() {
+  if (gameOver) {
+    successCount = 0;
+    gameOver = false;
+    document.getElementById("btn").textContent = "挑戦する";
+    updateDisplay();
+    return;
+  }
 
-    function updateDisplay(isGameOver = false) {
-      document.getElementById("result").textContent = "成功回数: " + successCount;
+  if (Math.random() < 0.5) {
+    successCount++;
+    updateDisplay();
+  } else {
+    gameOver = true;
+    document.getElementById("btn").textContent = "もう一度";
+    updateDisplay(true);
+    checkHighScore();
+  }
+}
 
-      // 確率 = (1/2)^n
-      let probability = Math.pow(0.5, successCount);
-      let percent = (probability * 100).toFixed(6);
+function updateDisplay(isGameOver = false) {
+  document.getElementById("result").textContent =
+    "成功回数: " + successCount;
 
-      document.getElementById("probability").textContent =
-        "ここまで成功し続ける確率: " + percent + "%";
+  let probability = Math.pow(0.5, successCount);
+  let percent = (probability * 100).toFixed(8);
 
-      if (isGameOver) {
-        document.getElementById("result").textContent += "（ゲームオーバー！もう一度押すとリセット）";
-      }
-    }
-  </script>
+  document.getElementById("probability").textContent =
+    "ここまで成功する確率: " + percent + "%";
+
+  if (isGameOver) {
+    document.getElementById("result").textContent += "（ゲームオーバー）";
+  }
+}
+
+// ハイスコア更新
+function checkHighScore() {
+  let highScore = localStorage.getItem("highScore") || 0;
+
+  if (successCount > highScore) {
+    let now = new Date();
+    let timeString =
+      now.getFullYear() + "/" +
+      (now.getMonth()+1) + "/" +
+      now.getDate() + " " +
+      now.getHours() + ":" +
+      now.getMinutes() + ":" +
+      now.getSeconds();
+
+    localStorage.setItem("highScore", successCount);
+    localStorage.setItem("highScoreTime", timeString);
+
+    document.getElementById("highScore").textContent = successCount;
+    document.getElementById("updateTime").textContent = timeString;
+  }
+}
+</script>
 
 </body>
 </html>
