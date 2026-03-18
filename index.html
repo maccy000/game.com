@@ -43,9 +43,6 @@
       margin-top: 20px;
       height: 40px;
     }
-    #rank {
-      margin-top: 30px;
-    }
   </style>
 </head>
 <body>
@@ -68,7 +65,7 @@
     </div>
 
     <div id="result"></div>
-    <h2>スコア: <span id="score">0</span></h2>
+    <h2>連続成功数: <span id="score">0</span></h2>
   </div>
 
   <div id="rank">
@@ -81,13 +78,13 @@
     let score = 0;
     let playerName = "";
 
-    // ローカルにハイスコア保存
+    // ハイスコア管理
     let highScore = Number(localStorage.getItem("highScore")) || 0;
     let updatedAt = localStorage.getItem("updatedAt") || "---";
     document.getElementById("highScore").textContent = highScore;
     document.getElementById("updatedAt").textContent = updatedAt;
 
-    // 仮のオンラインランキング（本物のサーバーは使わずローカルで再現）
+    // 仮のオンラインランキング（実際はローカル保存）
     let onlineRanking = JSON.parse(localStorage.getItem("onlineRanking")) || [];
 
     function startGame() {
@@ -103,34 +100,37 @@
     }
 
     function newRound() {
-      // 完全にリセット（◯が残らないように）
+      // ◯ の表示リセット
       document.getElementById("leftBox").textContent = "?";
       document.getElementById("rightBox").textContent = "?";
       document.getElementById("result").textContent = "";
 
-      // ランダムで正解サイドを決める
+      // 新しい正解をランダムで設定
       correctSide = Math.random() < 0.5 ? "left" : "right";
     }
 
     function choose(side) {
-      // 正解のとき
       if (side === correctSide) {
+        // 正解
         document.getElementById("result").textContent = "正解！";
         score++;
         document.getElementById("score").textContent = score;
 
-        // 正解側だけ「◯」を表示
-        if (correctSide === "left") {
+        // 正解側にだけ ◯ を出す
+        if (side === "left") {
           document.getElementById("leftBox").textContent = "◯";
         } else {
           document.getElementById("rightBox").textContent = "◯";
         }
 
         updateHighScore();
-        setTimeout(newRound, 1000);
+        setTimeout(newRound, 800);
       } else {
-        // 失敗
+        // 間違い → 連続成功数をゼロに戻す
         document.getElementById("result").textContent = "失敗…";
+        score = 0;
+        document.getElementById("score").textContent = score;
+
         endGame();
       }
     }
@@ -140,11 +140,12 @@
         highScore = score;
         let now = new Date().toLocaleString();
         updatedAt = now;
+
         document.getElementById("highScore").textContent = highScore;
-        document.getElementById("updatedAt").textContent = now;
+        document.getElementById("updatedAt").textContent = updatedAt;
 
         localStorage.setItem("highScore", highScore);
-        localStorage.setItem("updatedAt", now);
+        localStorage.setItem("updatedAt", updatedAt);
       }
     }
 
@@ -154,9 +155,9 @@
     }
 
     function saveOnlineRanking() {
-      onlineRanking.push({ name: playerName, score: score });
+      onlineRanking.push({ name: playerName, score: highScore });
       onlineRanking.sort((a, b) => b.score - a.score);
-      onlineRanking = onlineRanking.slice(0, 5); // 上位5名
+      onlineRanking = onlineRanking.slice(0, 5); // 上位5人だけ
       localStorage.setItem("onlineRanking", JSON.stringify(onlineRanking));
     }
 
