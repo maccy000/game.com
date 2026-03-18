@@ -1,256 +1,176 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>2分の1チャレンジ</title>
-
-<style>
-body {
-  margin: 0;
-  font-family: sans-serif;
-  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-  color: white;
-  text-align: center;
-}
-
-#highScoreBox {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(255,255,255,0.1);
-  padding: 15px;
-  border-radius: 10px;
-}
-
-.container {
-  margin-top: 100px;
-}
-
-.box-area {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-  margin-top: 30px;
-}
-
-.box {
-  width: 120px;
-  height: 120px;
-  background: #333;
-  border-radius: 12px;
-  font-size: 40px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.box:hover {
-  transform: scale(1.1);
-}
-
-.success { background: gold; }
-.fail { background: crimson; }
-
-#ranking {
-  margin-top: 40px;
-}
-
-input {
-  padding: 8px;
-  border-radius: 5px;
-  border: none;
-}
-
-button {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 5px;
-  margin-left: 5px;
-  cursor: pointer;
-}
-</style>
+  <meta charset="UTF-8" />
+  <title>左右当てゲーム</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f5f5f5;
+    }
+    #game {
+      margin-top: 40px;
+    }
+    .box-container {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 30px;
+    }
+    .box {
+      width: 120px;
+      height: 120px;
+      background: #fff;
+      border: 3px solid #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 48px;
+      cursor: pointer;
+      border-radius: 10px;
+      user-select: none;
+    }
+    #scoreboard {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      text-align: right;
+      font-size: 18px;
+    }
+    #result {
+      font-size: 28px;
+      margin-top: 20px;
+      height: 40px;
+    }
+    #rank {
+      margin-top: 30px;
+    }
+  </style>
 </head>
-
 <body>
-
-<div id="highScoreBox">
-  🏆 <span id="highScore">0</span><br>
-  更新: <span id="updateTime">なし</span>
-</div>
-
-<div class="container">
-  <h1>2分の1チャレンジ</h1>
-
-  <div class="box-area">
-    <div class="box" onclick="chooseBox(0)">?</div>
-    <div class="box" onclick="chooseBox(1)">?</div>
+  <div id="scoreboard">
+    <div>ハイスコア: <span id="highScore">0</span></div>
+    <div>更新日時: <span id="updatedAt">---</span></div>
   </div>
 
-  <div id="result">成功回数: 0</div>
-  <div id="probability">確率: 100%</div>
+  <h1>左右当てゲーム</h1>
 
-  <div id="nameInput" style="display:none; margin-top:20px;">
-    名前: <input type="text" id="playerName">
-    <button onclick="saveScore()">登録</button>
+  <div>
+    名前：<input id="playerName" type="text" placeholder="名前を入力" />
+    <button onclick="startGame()">ゲーム開始</button>
   </div>
 
-  <div id="ranking">
-    <h2>オンラインランキング（上位10名）</h2>
+  <div id="game" style="display:none;">
+    <div class="box-container">
+      <div class="box" id="leftBox" onclick="choose('left')">?</div>
+      <div class="box" id="rightBox" onclick="choose('right')">?</div>
+    </div>
+
+    <div id="result"></div>
+    <h2>スコア: <span id="score">0</span></h2>
+  </div>
+
+  <div id="rank">
+    <h2>オンラインランキング（上位5）</h2>
     <ol id="rankingList"></ol>
   </div>
-</div>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script>
+    let correctSide;
+    let score = 0;
+    let playerName = "";
 
-<script>
-// -------------------------------
-// 🔥 ここをあなたの Firebase 情報に変更
-// -------------------------------
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_DOMAIN",
-  databaseURL: "YOUR_DATABASE_URL",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_BUCKET",
-  messagingSenderId: "YOUR_ID",
-  appId: "YOUR_APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
+    // ローカルにハイスコア保存
+    let highScore = Number(localStorage.getItem("highScore")) || 0;
+    let updatedAt = localStorage.getItem("updatedAt") || "---";
+    document.getElementById("highScore").textContent = highScore;
+    document.getElementById("updatedAt").textContent = updatedAt;
 
-const db = firebase.database();
+    // 仮のオンラインランキング（本物のサーバーは使わずローカルで再現）
+    let onlineRanking = JSON.parse(localStorage.getItem("onlineRanking")) || [];
 
-// -------------------------------
+    function startGame() {
+      playerName = document.getElementById("playerName").value;
+      if (!playerName) {
+        alert("名前を入力してください！");
+        return;
+      }
+      score = 0;
+      document.getElementById("score").textContent = score;
+      document.getElementById("game").style.display = "block";
+      newRound();
+    }
 
-let successCount = 0;
-let gameOver = false;
+    function newRound() {
+      // 完全にリセット（◯が残らないように）
+      document.getElementById("leftBox").textContent = "?";
+      document.getElementById("rightBox").textContent = "?";
+      document.getElementById("result").textContent = "";
 
-// 初期ロード
-window.onload = function() {
-  loadHighScore();
-  loadRanking();
-};
+      // ランダムで正解サイドを決める
+      correctSide = Math.random() < 0.5 ? "left" : "right";
+    }
 
-function chooseBox(choice) {
-  if (gameOver) {
-    resetGame();
-    return;
-  }
+    function choose(side) {
+      // 正解のとき
+      if (side === correctSide) {
+        document.getElementById("result").textContent = "正解！";
+        score++;
+        document.getElementById("score").textContent = score;
 
-  let correct = Math.random() < 0.5 ? 0 : 1;
-  let boxes = document.querySelectorAll(".box");
+        // 正解側だけ「◯」を表示
+        if (correctSide === "left") {
+          document.getElementById("leftBox").textContent = "◯";
+        } else {
+          document.getElementById("rightBox").textContent = "◯";
+        }
 
-  // 一旦全部リセット
-  boxes.forEach(b => {
-    b.classList.remove("success", "fail");
-    b.textContent = "?";
-  });
+        updateHighScore();
+        setTimeout(newRound, 1000);
+      } else {
+        // 失敗
+        document.getElementById("result").textContent = "失敗…";
+        endGame();
+      }
+    }
 
-  if (choice === correct) {
-    // 成功（表示は ? のまま）
-    successCount++;
-    document.getElementById("result").textContent = "正解！ 成功回数: " + successCount;
+    function updateHighScore() {
+      if (score > highScore) {
+        highScore = score;
+        let now = new Date().toLocaleString();
+        updatedAt = now;
+        document.getElementById("highScore").textContent = highScore;
+        document.getElementById("updatedAt").textContent = now;
 
-  } else {
-    // 失敗：結果を表示
-    gameOver = true;
+        localStorage.setItem("highScore", highScore);
+        localStorage.setItem("updatedAt", now);
+      }
+    }
 
-    boxes[choice].classList.add("fail");
-    boxes[choice].textContent = "❌";
+    function endGame() {
+      saveOnlineRanking();
+      renderRanking();
+    }
 
-    boxes[correct].classList.add("success");
-    boxes[correct].textContent = "💰";
+    function saveOnlineRanking() {
+      onlineRanking.push({ name: playerName, score: score });
+      onlineRanking.sort((a, b) => b.score - a.score);
+      onlineRanking = onlineRanking.slice(0, 5); // 上位5名
+      localStorage.setItem("onlineRanking", JSON.stringify(onlineRanking));
+    }
 
-    document.getElementById("nameInput").style.display = "block";
-
-    updateHighScore();
-  }
-
-  updateDisplay();
-}
-
-function updateDisplay() {
-  let p = Math.pow(0.5, successCount) * 100;
-  document.getElementById("probability").textContent =
-    "確率: " + p.toFixed(8) + "%";
-}
-
-function resetGame() {
-  successCount = 0;
-  gameOver = false;
-  document.getElementById("nameInput").style.display = "none";
-
-  document.querySelectorAll(".box").forEach(b => {
-    b.classList.remove("success", "fail");
-    b.textContent = "?";
-  });
-
-  document.getElementById("result").textContent = "成功回数: 0";
-  updateDisplay();
-}
-
-// ---- ハイスコア ----
-function loadHighScore() {
-  let s = localStorage.getItem("highScore");
-  let t = localStorage.getItem("highScoreTime");
-  if (s) {
-    document.getElementById("highScore").textContent = s;
-    document.getElementById("updateTime").textContent = t;
-  }
-}
-
-function updateHighScore() {
-  let high = localStorage.getItem("highScore") || 0;
-  if (successCount > high) {
-    let now = new Date().toLocaleString();
-    localStorage.setItem("highScore", successCount);
-    localStorage.setItem("highScoreTime", now);
-    loadHighScore();
-  }
-}
-
-// ---- オンラインランキング ----
-function saveScore() {
-  let name = document.getElementById("playerName").value || "名無し";
-
-  // Firebaseに追加
-  db.ref("ranking").push({
-    name: name,
-    score: successCount,
-    time: Date.now()
-  });
-
-  document.getElementById("playerName").value = "";
-
-  loadRanking();
-  resetGame();
-}
-
-// ランキング読み込み
-function loadRanking() {
-  db.ref("ranking")
-    .orderByChild("score")
-    .limitToLast(10)
-    .once("value", snapshot => {
-      let ranking = [];
-      snapshot.forEach(child => ranking.push(child.val()));
-
-      ranking.sort((a, b) => b.score - a.score);
-
-      let list = document.getElementById("rankingList");
+    function renderRanking() {
+      const list = document.getElementById("rankingList");
       list.innerHTML = "";
-
-      ranking.forEach(r => {
-        let li = document.createElement("li");
-        li.textContent = r.name + " : " + r.score;
+      onlineRanking.forEach((entry) => {
+        const li = document.createElement("li");
+        li.textContent = `${entry.name}: ${entry.score}`;
         list.appendChild(li);
       });
-    });
-}
-</script>
+    }
 
+    renderRanking();
+  </script>
 </body>
 </html>
