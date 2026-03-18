@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>2分の1</title>
+<title>2分の1チャレンジ</title>
 
 <style>
 body {
@@ -13,7 +13,6 @@ body {
   text-align: center;
 }
 
-/* ハイスコア */
 #highScoreBox {
   position: absolute;
   top: 20px;
@@ -23,12 +22,10 @@ body {
   border-radius: 10px;
 }
 
-/* コンテナ */
 .container {
   margin-top: 100px;
 }
 
-/* 箱 */
 .box-area {
   display: flex;
   justify-content: center;
@@ -56,7 +53,6 @@ body {
 .success { background: gold; }
 .fail { background: crimson; }
 
-/* ランキング */
 #ranking {
   margin-top: 40px;
 }
@@ -101,12 +97,34 @@ button {
   </div>
 
   <div id="ranking">
-    <h2>ランキング</h2>
+    <h2>オンラインランキング（上位10名）</h2>
     <ol id="rankingList"></ol>
   </div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
 <script>
+// -------------------------------
+// 🔥 ここをあなたの Firebase 情報に変更
+// -------------------------------
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_DOMAIN",
+  databaseURL: "YOUR_DATABASE_URL",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_BUCKET",
+  messagingSenderId: "YOUR_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+
+// -------------------------------
+
 let successCount = 0;
 let gameOver = false;
 
@@ -116,7 +134,6 @@ window.onload = function() {
   loadRanking();
 };
 
-// 箱選択
 function chooseBox(choice) {
   if (gameOver) {
     resetGame();
@@ -126,19 +143,24 @@ function chooseBox(choice) {
   let correct = Math.random() < 0.5 ? 0 : 1;
   let boxes = document.querySelectorAll(".box");
 
+  // 一旦全部リセット
   boxes.forEach(b => {
     b.classList.remove("success", "fail");
     b.textContent = "?";
   });
 
   if (choice === correct) {
+    // 成功（表示は ? のまま）
     successCount++;
-    boxes[choice].classList.add("success");
-    boxes[choice].textContent = "💰";
+    document.getElementById("result").textContent = "正解！ 成功回数: " + successCount;
+
   } else {
+    // 失敗：結果を表示
     gameOver = true;
+
     boxes[choice].classList.add("fail");
     boxes[choice].textContent = "❌";
+
     boxes[correct].classList.add("success");
     boxes[correct].textContent = "💰";
 
@@ -150,17 +172,12 @@ function chooseBox(choice) {
   updateDisplay();
 }
 
-// 表示更新
 function updateDisplay() {
-  document.getElementById("result").textContent =
-    "成功回数: " + successCount;
-
   let p = Math.pow(0.5, successCount) * 100;
   document.getElementById("probability").textContent =
     "確率: " + p.toFixed(8) + "%";
 }
 
-// リセット
 function resetGame() {
   successCount = 0;
   gameOver = false;
@@ -171,10 +188,11 @@ function resetGame() {
     b.textContent = "?";
   });
 
+  document.getElementById("result").textContent = "成功回数: 0";
   updateDisplay();
 }
 
-// ハイスコア
+// ---- ハイスコア ----
 function loadHighScore() {
   let s = localStorage.getItem("highScore");
   let t = localStorage.getItem("highScoreTime");
@@ -194,37 +212,43 @@ function updateHighScore() {
   }
 }
 
-// ランキング保存
+// ---- オンラインランキング ----
 function saveScore() {
   let name = document.getElementById("playerName").value || "名無し";
 
-  let ranking = JSON.parse(localStorage.getItem("ranking") || "[]");
+  // Firebaseに追加
+  db.ref("ranking").push({
+    name: name,
+    score: successCount,
+    time: Date.now()
+  });
 
-  ranking.push({ name: name, score: successCount });
-
-  // スコア順
-  ranking.sort((a,b) => b.score - a.score);
-
-  // 上位10件だけ
-  ranking = ranking.slice(0, 10);
-
-  localStorage.setItem("ranking", JSON.stringify(ranking));
+  document.getElementById("playerName").value = "";
 
   loadRanking();
   resetGame();
 }
 
-// ランキング表示
+// ランキング読み込み
 function loadRanking() {
-  let ranking = JSON.parse(localStorage.getItem("ranking") || "[]");
-  let list = document.getElementById("rankingList");
-  list.innerHTML = "";
+  db.ref("ranking")
+    .orderByChild("score")
+    .limitToLast(10)
+    .once("value", snapshot => {
+      let ranking = [];
+      snapshot.forEach(child => ranking.push(child.val()));
 
-  ranking.forEach(r => {
-    let li = document.createElement("li");
-    li.textContent = r.name + " : " + r.score;
-    list.appendChild(li);
-  });
+      ranking.sort((a, b) => b.score - a.score);
+
+      let list = document.getElementById("rankingList");
+      list.innerHTML = "";
+
+      ranking.forEach(r => {
+        let li = document.createElement("li");
+        li.textContent = r.name + " : " + r.score;
+        list.appendChild(li);
+      });
+    });
 }
 </script>
 
